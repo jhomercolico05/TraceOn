@@ -135,12 +135,12 @@ export default function LoginScreen({ navigation }) {
 
           <View className="mt-4 flex-row">
             <Pressable
-              onPress={() => navigation?.navigate("UserTabs")}
+              onPress={() => navigation?.navigate("Map")}
               className="mr-3 h-14 flex-1 flex-row items-center justify-center rounded-2xl bg-primary/10 active:opacity-90"
             >
-              <Ionicons name="person-outline" size={18} color="#14614A" />
+              <Ionicons name="map-outline" size={18} color="#14614A" />
               <Text className="ml-2 text-[15px] font-semibold text-primary">
-                Student view
+                Campus map
               </Text>
             </Pressable>
 

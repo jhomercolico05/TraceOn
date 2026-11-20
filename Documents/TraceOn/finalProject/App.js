@@ -7,6 +7,7 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import WelcomeScreen from "./pages/auth/WelcomeScreen";
 import LoginScreen from "./pages/auth/LoginScreen";
 import RegisterScreen from "./pages/auth/RegisterScreen";
+import MapScreen from "./pages/MapScreen";
 
 
 function Placeholder({ name, navigation }) {
@@ -28,6 +29,7 @@ const SCREENS = {
   Welcome: WelcomeScreen,
   Login: LoginScreen,
   Register: RegisterScreen,
+  Map: MapScreen,
 };
 
 export default function App() {
