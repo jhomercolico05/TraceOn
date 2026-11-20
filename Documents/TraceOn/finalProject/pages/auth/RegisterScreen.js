@@ -141,7 +141,7 @@ export default function RegisterScreen({ navigation }) {
 
             {/* Create account */}
             <Pressable
-              onPress={() => navigation?.navigate("UserTabs")}
+              onPress={() => navigation?.navigate("Map")}
               className="mt-5 h-14 flex-row items-center justify-center rounded-2xl bg-primary active:opacity-90"
             >
               <Text className="text-[16px] font-semibold text-white">
