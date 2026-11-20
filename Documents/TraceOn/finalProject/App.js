@@ -1,4 +1,3 @@
-
 import "./global.css";
 import React, { useState } from "react";
 import { View, Text, Pressable } from "react-native";
@@ -7,8 +6,9 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import WelcomeScreen from "./pages/auth/WelcomeScreen";
 import LoginScreen from "./pages/auth/LoginScreen";
 import RegisterScreen from "./pages/auth/RegisterScreen";
+import HomeScreen from "./pages/main/HomeScreen";
 import MapScreen from "./pages/MapScreen";
-
+import BottomTabs from "./components/BottomTabs";
 
 function Placeholder({ name, navigation }) {
   return (
@@ -29,11 +29,17 @@ const SCREENS = {
   Welcome: WelcomeScreen,
   Login: LoginScreen,
   Register: RegisterScreen,
+  Home: HomeScreen,
   Map: MapScreen,
+  Report: Placeholder,
+  Claims: Placeholder,
+  Profile: Placeholder,
 };
 
-export default function App() {
+// Tabs visible once signed in.
+const TABS = ["Home", "Map", "Report", "Claims", "Profile"];
 
+export default function App() {
   const [stack, setStack] = useState(["Welcome"]);
   const current = stack[stack.length - 1];
 
@@ -51,6 +57,12 @@ export default function App() {
           <Screen navigation={navigation} />
         ) : (
           <Placeholder name={current} navigation={navigation} />
+        )}
+        {TABS.includes(current) && (
+          <BottomTabs
+            current={current}
+            onNavigate={(tab) => setStack((s) => [...s, tab])}
+          />
         )}
       </View>
     </SafeAreaProvider>
