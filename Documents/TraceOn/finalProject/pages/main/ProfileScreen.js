@@ -3,6 +3,8 @@ import { View, Text, ScrollView, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
+import { useAuth } from "../../context/AuthProvider";
+
 const MENU = [
   { key: "reports", label: "My reports", icon: "list-outline", hint: "12" },
   { key: "saved", label: "Saved items", icon: "bookmark-outline", hint: "3" },
@@ -21,6 +23,13 @@ const MENU = [
 ];
 
 export default function ProfileScreen({ navigation }) {
+  const { session, profile, signOut } = useAuth();
+
+  const name = profile?.full_name || "Student";
+  const email = profile?.email || session?.user?.email || "";
+  const program = profile?.program || "CvSU Main Campus";
+  const initial = name.trim().charAt(0).toUpperCase() || "S";
+
   return (
     <SafeAreaView className="flex-1 bg-[#F7F3EA]">
       <ScrollView
@@ -39,15 +48,13 @@ export default function ProfileScreen({ navigation }) {
         <View className="mt-4 rounded-2xl bg-primary-dark p-5">
           <View className="flex-row items-center">
             <View className="h-14 w-14 items-center justify-center rounded-full bg-white/15">
-              <Text className="text-[22px] font-bold text-white">D</Text>
+              <Text className="text-[22px] font-bold text-white">
+                {initial}
+              </Text>
             </View>
             <View className="ml-3 flex-1">
-              <Text className="text-[18px] font-bold text-white">
-                Darrelle Santos
-              </Text>
-              <Text className="mt-0.5 text-[12px] text-white/70">
-                darrelle.santos@cvsu.edu.ph
-              </Text>
+              <Text className="text-[18px] font-bold text-white">{name}</Text>
+              <Text className="mt-0.5 text-[12px] text-white/70">{email}</Text>
             </View>
             <Pressable
               hitSlop={8}
@@ -62,7 +69,7 @@ export default function ProfileScreen({ navigation }) {
           <View className="mt-4 flex-row items-center rounded-xl bg-white/10 px-3 py-2">
             <Ionicons name="school-outline" size={15} color="#D9E6DF" />
             <Text className="ml-2 text-[12px] text-white/80">
-              CvSU Main Campus · BS Computer Science
+              {program}
             </Text>
           </View>
         </View>
@@ -116,7 +123,7 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
         <Pressable
-          onPress={() => navigation?.reset("Welcome")}
+          onPress={signOut}
           accessibilityRole="button"
           className="mt-4 h-12 flex-row items-center justify-center rounded-2xl border border-[#E4E6D8] bg-white"
         >

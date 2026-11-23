@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   View,
   Text,
   TextInput,
@@ -12,10 +14,34 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
+import { useAuth } from "../../context/AuthProvider";
+
 export default function LoginScreen({ navigation }) {
-  // Empty inputs. No real login logic yet.
+  const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSignIn() {
+    if (submitting) return;
+
+    if (!email.trim() || !password) {
+      setError("Enter your CvSU email and password.");
+      return;
+    }
+
+    setError("");
+    setSubmitting(true);
+    try {
+      await signIn(email, password);
+      // App.js switches to the signed-in stack once the session exists.
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-cream">
@@ -99,7 +125,12 @@ export default function LoginScreen({ navigation }) {
 
             {/* Forgot password */}
             <Pressable
-              onPress={() => navigation?.navigate("ForgotPassword")}
+              onPress={() =>
+                Alert.alert(
+                  "Password reset",
+                  "Password reset is not available yet. Ask an admin to reset it for now.",
+                )
+              }
               className="mt-3 self-end"
             >
               <Text className="text-[13px] font-semibold text-primary">
@@ -107,51 +138,39 @@ export default function LoginScreen({ navigation }) {
               </Text>
             </Pressable>
 
+            {error ? (
+              <View className="mt-3 flex-row items-center rounded-xl bg-red-50 px-3 py-2.5">
+                <Ionicons name="alert-circle" size={16} color="#B42318" />
+                <Text className="ml-2 flex-1 text-[12px] text-red-700">
+                  {error}
+                </Text>
+              </View>
+            ) : null}
+
             {/* Sign in */}
             <Pressable
-              onPress={() => navigation?.navigate("Home")}
-              className="mt-4 h-14 flex-row items-center justify-center rounded-2xl bg-primary active:opacity-90"
+              onPress={handleSignIn}
+              disabled={submitting}
+              accessibilityRole="button"
+              className={`mt-4 h-14 flex-row items-center justify-center rounded-2xl bg-primary ${
+                submitting ? "opacity-60" : "active:opacity-90"
+              }`}
             >
-              <Text className="text-[16px] font-semibold text-white">
-                Sign in
-              </Text>
-              <Ionicons
-                name="arrow-forward"
-                size={18}
-                color="#fff"
-                style={{ marginLeft: 6 }}
-              />
-            </Pressable>
-          </View>
-
-          {/* ---------- DEMO SHORTCUTS ---------- */}
-          <View className="mt-6 flex-row items-center">
-            <View className="h-px flex-1 bg-gray-300" />
-            <Text className="mx-3 text-[10px] font-medium tracking-widest text-gray-500">
-              OR EXPLORE THE DEMO
-            </Text>
-            <View className="h-px flex-1 bg-gray-300" />
-          </View>
-
-          <View className="mt-4 flex-row">
-            <Pressable
-              onPress={() => navigation?.navigate("Map")}
-              className="mr-3 h-14 flex-1 flex-row items-center justify-center rounded-2xl bg-primary/10 active:opacity-90"
-            >
-              <Ionicons name="map-outline" size={18} color="#14614A" />
-              <Text className="ml-2 text-[15px] font-semibold text-primary">
-                Campus map
-              </Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => navigation?.navigate("AdminTabs")}
-              className="h-14 flex-1 flex-row items-center justify-center rounded-2xl bg-primary-dark active:opacity-90"
-            >
-              <Ionicons name="shield-outline" size={18} color="#fff" />
-              <Text className="ml-2 text-[15px] font-semibold text-white">
-                Admin console
-              </Text>
+              {submitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Text className="text-[16px] font-semibold text-white">
+                    Sign in
+                  </Text>
+                  <Ionicons
+                    name="arrow-forward"
+                    size={18}
+                    color="#fff"
+                    style={{ marginLeft: 6 }}
+                  />
+                </>
+              )}
             </Pressable>
           </View>
 

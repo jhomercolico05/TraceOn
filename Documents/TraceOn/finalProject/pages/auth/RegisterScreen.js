@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   View,
   Text,
   TextInput,
@@ -11,6 +12,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+
+import { useAuth } from "../../context/AuthProvider";
 
 // Reusable input row (icon + text field). Move to components/common/ later.
 function FormField({ label, icon, ...inputProps }) {
@@ -32,12 +35,62 @@ function FormField({ label, icon, ...inputProps }) {
 }
 
 export default function RegisterScreen({ navigation }) {
-  // Empty inputs. No real registration logic yet.
+  const { signUp } = useAuth();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [program, setProgram] = useState("");
   const [password, setPassword] = useState("");
   const [agreed, setAgreed] = useState(false);
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
+
+  async function handleCreate() {
+    if (submitting) return;
+
+    if (!agreed) {
+      setError("Please accept the privacy notice to continue.");
+      return;
+    }
+
+    setError("");
+    setSubmitting(true);
+    try {
+      const result = await signUp({ fullName, email, program, password });
+      // With email confirmation off, App.js switches to the signed-in stack
+      // as soon as the session appears. Otherwise we explain what happens next.
+      if (result.needsConfirmation) setNeedsConfirmation(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (needsConfirmation) {
+    return (
+      <SafeAreaView className="flex-1 bg-cream">
+        <View className="flex-1 items-center justify-center px-6">
+          <View className="h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+            <Ionicons name="mail-open-outline" size={32} color="#14614A" />
+          </View>
+          <Text className="mt-4 text-[22px] font-bold text-primary-dark">
+            Check your email
+          </Text>
+          <Text className="mt-2 text-center text-[13px] leading-5 text-gray-500">
+            We sent a confirmation link to {email.trim()}. Open it, then sign in
+            with your password.
+          </Text>
+          <Pressable
+            onPress={() => navigation?.navigate("Login")}
+            className="mt-6 h-12 w-full items-center justify-center rounded-2xl bg-primary"
+          >
+            <Text className="font-semibold text-white">Go to sign in</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-cream">
@@ -139,20 +192,39 @@ export default function RegisterScreen({ navigation }) {
               </Text>
             </Pressable>
 
+            {error ? (
+              <View className="mt-3 flex-row items-center rounded-xl bg-red-50 px-3 py-2.5">
+                <Ionicons name="alert-circle" size={16} color="#B42318" />
+                <Text className="ml-2 flex-1 text-[12px] text-red-700">
+                  {error}
+                </Text>
+              </View>
+            ) : null}
+
             {/* Create account */}
             <Pressable
-              onPress={() => navigation?.navigate("Map")}
-              className="mt-5 h-14 flex-row items-center justify-center rounded-2xl bg-primary active:opacity-90"
+              onPress={handleCreate}
+              disabled={submitting}
+              accessibilityRole="button"
+              className={`mt-5 h-14 flex-row items-center justify-center rounded-2xl bg-primary ${
+                submitting ? "opacity-60" : "active:opacity-90"
+              }`}
             >
-              <Text className="text-[16px] font-semibold text-white">
-                Create account
-              </Text>
-              <Ionicons
-                name="arrow-forward"
-                size={18}
-                color="#fff"
-                style={{ marginLeft: 6 }}
-              />
+              {submitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Text className="text-[16px] font-semibold text-white">
+                    Create account
+                  </Text>
+                  <Ionicons
+                    name="arrow-forward"
+                    size={18}
+                    color="#fff"
+                    style={{ marginLeft: 6 }}
+                  />
+                </>
+              )}
             </Pressable>
           </View>
 

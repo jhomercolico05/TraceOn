@@ -3,7 +3,14 @@ import { View, Text, ScrollView, Pressable, TextInput, Image } from "react-nativ
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
+import { useAuth } from "../../context/AuthProvider";
+
 export default function HomeScreen({ navigation }) {
+  const { profile, session } = useAuth();
+  const fullName = profile?.full_name || session?.user?.user_metadata?.full_name || "";
+  const firstName = fullName.trim().split(" ")[0] || "there";
+  const initial = firstName.charAt(0).toUpperCase() || "T";
+
   return (
     <SafeAreaView className="flex-1 bg-[#F7F3EA]">
       <ScrollView className="px-4" showsVerticalScrollIndicator={false}>
@@ -11,7 +18,7 @@ export default function HomeScreen({ navigation }) {
         <View className="mt-4 flex-row items-center justify-between">
           <View>
             <Text className="text-[14px] text-gray-500">Good afternoon,</Text>
-            <Text className="text-[24px] font-bold text-gray-900">Darrelle</Text>
+            <Text className="text-[24px] font-bold text-gray-900">{firstName}</Text>
             <Text className="text-[12px] text-gray-400">Wednesday, November 11 · CvSU Main Campus</Text>
           </View>
           <View className="flex-row items-center gap-3">
@@ -22,7 +29,7 @@ export default function HomeScreen({ navigation }) {
               </View>
             </View>
             <View className="h-10 w-10 rounded-full bg-primary items-center justify-center">
-              <Text className="font-bold text-white">D</Text>
+              <Text className="font-bold text-white">{initial}</Text>
             </View>
           </View>
         </View>

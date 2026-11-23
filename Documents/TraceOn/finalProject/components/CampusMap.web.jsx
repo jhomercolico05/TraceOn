@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-
 import { buildCampusMapHtml } from './campusMapHtml'
 
 /**
@@ -22,9 +21,7 @@ export default function CampusMap({
 }) {
   const frameRef = useRef(null)
   const [ready, setReady] = useState(false)
-  const [html] = useState(() =>
-    buildCampusMapHtml({ campus, buildings, items, filter, pickMode, pin }),
-  )
+  const html = buildCampusMapHtml({ campus, buildings, items, filter, pickMode, pin })
 
   const post = useCallback((payload) => {
     const frame = frameRef.current
@@ -35,7 +32,7 @@ export default function CampusMap({
   useEffect(() => {
     function handleMessage(event) {
       const frame = frameRef.current
-      if (!frame || event.source !== frame.contentWindow) return
+      if (!frame?.contentWindow) return
 
       const data = event.data
       if (!data || data.source !== 'traceon-map') return
@@ -45,6 +42,8 @@ export default function CampusMap({
       } else if (data.type === 'select') {
         onSelect?.(data.id ?? null)
       } else if (data.type === 'pick') {
+        onPick?.({ lat: data.lat, lng: data.lng })
+      } else if (data.type === 'pin') {
         onPick?.({ lat: data.lat, lng: data.lng })
       }
     }

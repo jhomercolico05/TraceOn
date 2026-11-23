@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   View,
   Text,
   ScrollView,
@@ -13,6 +14,8 @@ import { Ionicons } from "@expo/vector-icons";
 
 import CampusMap from "../../components/CampusMap";
 import { BUILDINGS, CAMPUS, ITEMS } from "../../data/campusMap";
+import { supabase } from "../../lib/supabase";
+import { useAuth } from "../../context/AuthProvider";
 
 const CATEGORIES = [
   "Electronics",
@@ -24,6 +27,7 @@ const CATEGORIES = [
 ];
 
 export default function ReportScreen({ navigation }) {
+  const { session } = useAuth();
   const [kind, setKind] = useState("lost");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -31,20 +35,80 @@ export default function ReportScreen({ navigation }) {
   const [pin, setPin] = useState(null);
   const [error, setError] = useState("");
   const [posted, setPosted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [categories, setCategories] = useState([]);
+
+  // Category ids live in the database; fall back to the local labels if the
+  // lookup has not loaded yet.
+  useEffect(() => {
+    let active = true;
+    supabase
+      .from("categories")
+      .select("id, slug, label")
+      .order("id")
+      .then(({ data }) => {
+        if (active && data) setCategories(data);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const accent = kind === "lost" ? "#B42318" : "#14614A";
 
-  function submit() {
+  async function submit() {
+    if (submitting) return;
+
     if (!title.trim()) {
       setError("Give the item a short name so people can recognise it.");
       return;
     }
-    if (!pin) {
+
+    const titleTrimmed = title.trim()
+    if (titleTrimmed.length < 3) {
+      setError("Title must be at least 3 characters long");
+      return;
+    }
+    if (titleTrimmed.length > 120) {
+      setError("Title must be at most 120 characters long");
+      return;
+    }
+
+    // Validate pin: must be an object with numeric lat/lng
+    const hasValidPin = pin != null &&
+      !isNaN(pin.lat) && !isNaN(pin.lng);
+
+    if (!hasValidPin) {
       setError("Tap the campus map to drop a pin where it was lost or found.");
       return;
     }
+    if (!session?.user?.id) {
+      setError("Your session expired. Please sign in again.");
+      return;
+    }
+
     setError("");
-    setPosted(true);
+    setSubmitting(true);
+    try {
+      const categoryRow = categories.find((row) => row.label === category);
+
+      const { error: insertError } = await supabase.from("reports").insert({
+        reporter_id: session.user.id,
+        type: kind,
+        title: titleTrimmed,
+        description: description.trim(),
+        category_id: categoryRow?.id ?? null,
+        lat: Number(pin.lat),
+        lon: Number(pin.lng),
+      });
+
+      if (insertError) throw insertError;
+      setPosted(true);
+    } catch (err) {
+      setError(err.message || "Could not post the report. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function reset() {
@@ -99,7 +163,7 @@ export default function ReportScreen({ navigation }) {
         <ScrollView
           className="px-4"
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 28 }}
         >
           <View className="mt-3">
@@ -109,164 +173,135 @@ export default function ReportScreen({ navigation }) {
             <Text className="mt-1 text-[25px] font-bold text-gray-900">
               Report an item
             </Text>
-            <Text className="mt-1 text-[13px] text-gray-500">
-              Pin the place on the campus map so people nearby can find it.
-            </Text>
           </View>
 
-          {/* Lost / Found toggle */}
-          <View className="mt-5 flex-row rounded-2xl bg-black/5 p-1">
-            {["lost", "found"].map((option) => {
-              const active = kind === option;
-              return (
-                <Pressable
-                  key={option}
-                  onPress={() => setKind(option)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  className={`h-11 flex-1 flex-row items-center justify-center rounded-xl ${
-                    active ? "bg-white" : ""
-                  }`}
-                >
-                  <Ionicons
-                    name={option === "lost" ? "alert-circle" : "checkmark-circle"}
-                    size={17}
-                    color={active ? accent : "#8A938C"}
-                  />
-                  <Text
-                    className={`ml-2 text-[14px] font-semibold ${
-                      active ? "text-gray-900" : "text-gray-400"
-                    }`}
-                  >
-                    {option === "lost" ? "I lost it" : "I found it"}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {/* Item details */}
-          <View className="mt-4 rounded-2xl border border-[#E4E6D8] bg-white p-4">
-            <Text className="mb-1.5 text-[13px] font-medium text-gray-800">
-              Item name
-            </Text>
-            <TextInput
-              value={title}
-              onChangeText={setTitle}
-              placeholder="e.g. Navy blue backpack"
-              placeholderTextColor="#9CA3AF"
-              className="h-12 rounded-xl border border-[#E4E6D8] bg-[#FBFBF6] px-3 text-[15px] text-gray-900"
-            />
-
-            <Text className="mb-1.5 mt-4 text-[13px] font-medium text-gray-800">
-              Description
-            </Text>
-            <TextInput
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Colour, brand, marks, what was inside..."
-              placeholderTextColor="#9CA3AF"
-              multiline
-              className="min-h-[76px] rounded-xl border border-[#E4E6D8] bg-[#FBFBF6] px-3 py-2 text-[15px] text-gray-900"
-              style={{ textAlignVertical: "top" }}
-            />
-
-            <Text className="mb-2 mt-4 text-[13px] font-medium text-gray-800">
-              Category
-            </Text>
-            <View className="flex-row flex-wrap gap-2">
-              {CATEGORIES.map((item) => {
-                const active = item === category;
-                return (
-                  <Pressable
-                    key={item}
-                    onPress={() => setCategory(item)}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: active }}
-                    className={`rounded-full border px-3 py-1.5 ${
-                      active
-                        ? "border-primary-dark bg-primary-dark"
-                        : "border-[#E4E6D8] bg-white"
-                    }`}
-                  >
-                    <Text
-                      className={`text-[12px] ${
-                        active ? "font-semibold text-white" : "text-gray-700"
-                      }`}
-                    >
-                      {item}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+          {/* Form Card */}
+          <View className="mt-5 rounded-2xl border border-[#E4E6D8] bg-white p-4">
+            {/* Lost / Found toggle */}
+            <View className="flex-row mb-4">
+              <Pressable
+                onPress={() => setKind("lost")}
+                className={`flex-1 h-12 flex-row items-center justify-center rounded-xl font-semibold ${kind === "lost" ? "bg-[#E7F0EA] text-[#B42318]" : "bg-white text-gray-600 border border-gray-200"}`}
+              >
+                Lost
+              </Pressable>
+              <Pressable
+                onPress={() => setKind("found")}
+                className={`flex-1 h-12 flex-row items-center justify-center rounded-xl font-semibold ${kind === "found" ? "bg-[#E7F0EA] text-[#14614A]" : "bg-white text-gray-600 border border-gray-200"}`}
+              >
+                Found
+              </Pressable>
             </View>
 
-            <Pressable className="mt-4 h-20 items-center justify-center rounded-xl border border-dashed border-[#C9CCBF] bg-[#FBFBF6]">
-              <Ionicons name="camera-outline" size={22} color="#8A938C" />
-              <Text className="mt-1 text-[12px] text-gray-500">Add a photo</Text>
-            </Pressable>
-          </View>
-
-          {/* Location picker */}
-          <View className="mt-4 rounded-2xl border border-[#E4E6D8] bg-white p-4">
-            <View className="flex-row items-center justify-between">
-              <Text className="text-[13px] font-medium text-gray-800">
-                Where on campus?
+            {/* Title */}
+            <View className="mb-3">
+              <Text className="mb-1.5 text-[13px] font-medium text-gray-800">
+                Item title
               </Text>
-              {pin ? (
-                <Text className="text-[11px] font-medium text-primary">
-                  Pin dropped
-                </Text>
-              ) : (
-                <Text className="text-[11px] text-gray-400">Required</Text>
-              )}
-            </View>
-
-            <View className="mt-3 h-[210px] overflow-hidden rounded-xl border border-[#E4E6D8]">
-              <CampusMap
-                campus={CAMPUS}
-                buildings={BUILDINGS}
-                items={ITEMS}
-                pickMode
-                pin={pin}
-                onPick={setPin}
+              <TextInput
+                placeholder="e.g. Navy blue Jansport backpack"
+                placeholderTextColor="#9CA3AF"
+                className="h-14 rounded-xl border border-[#E4E6D8] bg-[#FBFBF6] px-4 text-[15px] font-medium text-gray-900"
+                value={title}
+                onChangeText={setTitle}
               />
             </View>
 
-            <View className="mt-2 flex-row items-center">
-              <Ionicons name="location-outline" size={14} color="#8A938C" />
-              <Text className="ml-1 flex-1 text-[11px] text-gray-500">
-                {pin
-                  ? `Pinned at ${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}`
-                  : "Tap the map to drop a pin on the exact spot."}
+            {/* Description */}
+            <View className="mb-3">
+              <Text className="mb-1.5 text-[13px] font-medium text-gray-800">
+                Description
               </Text>
-              {pin ? (
-                <Pressable onPress={() => setPin(null)} hitSlop={8}>
-                  <Text className="text-[11px] font-semibold text-primary">
-                    Clear
-                  </Text>
+              <TextInput
+                placeholder="Where did you find it? Any identifying marks?"
+                placeholderTextColor="#9CA3AF"
+                className="h-28 rounded-xl border border-[#E4E6D8] bg-[#FBFBF6] px-4 py-3 text-[15px] font-medium text-gray-900"
+                value={description}
+                onChangeText={setDescription}
+                multiline
+              />
+            </View>
+
+            {/* Category */}
+            <View className="mb-3">
+              <Text className="mb-1.5 text-[13px] font-medium text-gray-800">
+                Category
+              </Text>
+              <View className="h-14 rounded-xl border border-[#E4E6D8] bg-[#FBFBF6] px-4 flex-row items-center justify-between">
+                <Text className="text-[15px] font-medium text-gray-900">{category}</Text>
+                <Ionicons name="chevron-down-outline" size={20} color="#6B7280" />
+              </View>
+            </View>
+
+            {/* Campus Map with pin dropping */}
+            <CampusMap
+              campus={CAMPUS}
+              buildings={BUILDINGS}
+              items={ITEMS}
+              pickMode
+              onPick={({ lat, lng }) => setPin({ lat: Number(lat), lng: Number(lng) })}
+            />
+
+            {/* Pin status */}
+            {pin != null &&
+            typeof pin.lat === "number" && typeof pin.lng === "number" ? (
+              <View className="mb-3 p-3 rounded-xl bg-[#E7F0EA] border border-[#14614A] flex-row items-center gap-2">
+                <Ionicons name="location-outline" size={18} color="#14614A" />
+                <Text className="text-[12px] font-medium text-[#14614A]">
+                  Pinned at {(Number(pin.lat)).toFixed(5)}, {(Number(pin.lng)).toFixed(5)}
+                </Text>
+                <Pressable
+                  onPress={() => setPin(null)}
+                  className="text-[#B42318]"
+                >
+                  <Text className="text-[12px] font-medium">Clear</Text>
                 </Pressable>
-              ) : null}
-            </View>
+              </View>
+            ) : (
+              <Pressable
+                onPress={() => navigation?.navigate("Map")}
+                className="mb-3 h-12 flex-row items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white px-4"
+              >
+                <Ionicons name="map-outline" size={18} color="#6B7280" />
+                <Text className="ml-2 text-[12px] font-medium text-gray-600">
+                  Tap the map to drop a pin
+                </Text>
+              </Pressable>
+            )}
+
+            {error ? (
+              <View className="mt-3 flex-row items-center rounded-xl bg-red-50 px-3 py-2.5">
+                <Ionicons name="alert-circle" size={16} color="#B42318" />
+                <Text className="ml-2 flex-1 text-[12px] text-red-700">
+                  {error}
+                </Text>
+              </View>
+            ) : null}
+
+            {/* Submit */}
+            <Pressable
+              onPress={submit}
+              disabled={submitting}
+              accessibilityRole="button"
+              className={`mt-5 h-14 flex-row items-center justify-center rounded-2xl bg-primary ${submitting ? "opacity-60" : "active:opacity-90"}`}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Text className="text-[16px] font-semibold text-white">
+                    Post Report
+                  </Text>
+                  <Ionicons
+                    name="arrow-forward"
+                    size={18}
+                    color="#fff"
+                    style={{ marginLeft: 6 }}
+                  />
+                </>
+              )}
+            </Pressable>
           </View>
-
-          {error ? (
-            <View className="mt-4 flex-row items-center rounded-xl bg-red-50 px-3 py-2.5">
-              <Ionicons name="alert-circle" size={16} color="#B42318" />
-              <Text className="ml-2 flex-1 text-[12px] text-red-700">{error}</Text>
-            </View>
-          ) : null}
-
-          <Pressable
-            onPress={submit}
-            accessibilityRole="button"
-            className="mt-4 h-14 flex-row items-center justify-center rounded-2xl bg-primary active:opacity-90"
-          >
-            <Ionicons name="send" size={17} color="#fff" />
-            <Text className="ml-2 text-[16px] font-semibold text-white">
-              Post {kind} report
-            </Text>
-          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

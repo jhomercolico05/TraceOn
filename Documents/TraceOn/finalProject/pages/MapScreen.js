@@ -1,10 +1,11 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 
 import CampusMap from '../components/CampusMap'
 import { BUILDINGS, CAMPUS, ITEMS } from '../data/campusMap'
+import { supabase } from '../lib/supabase'
 
 const COLORS = {
   bg: '#F7F3EA',
@@ -23,11 +24,50 @@ const FILTERS = ['All', 'Lost', 'Found']
 export default function MapScreen({ navigation }) {
   const [filter, setFilter] = useState('All')
   const [selectedId, setSelectedId] = useState(null)
+  const [reports, setReports] = useState([])
 
-  const pins = ITEMS.filter(
+  // Load reports from Supabase
+  useEffect(() => {
+    let isMounted = true;
+    supabase
+      .from('reports')
+      .select('id, type, title, lat, lon')
+      .order('id', { ascending: false })
+      .then(({ data }) => {
+        if (isMounted) setReports(data || []);
+      })
+      .catch((err) => {
+        console.error('Error loading reports:', err);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Combine seed items with database reports for map display
+  const seedPins = ITEMS.filter(
     (item) => filter === 'All' || item.type === filter.toLowerCase(),
   )
-  const selected = pins.find((item) => item.id === selectedId)
+
+  const reportPins = reports
+    .filter(
+      (r) =>
+        filter === 'All' ||
+        (r.type && r.type.toLowerCase() === filter.toLowerCase()),
+    )
+    .map((r) => ({
+      id: r.id,
+      title: r.title || 'Reported Item',
+      lat: r.lat,
+      lon: r.lon,
+      type: r.type || 'lost',
+      place: '',
+      category: 'Others',
+    }))
+
+  const allPins = [...seedPins, ...reportPins]
+
+  const selected = allPins.find((item) => item.id === selectedId)
 
   const handleSelect = useCallback((id) => {
     setSelectedId((current) => {
@@ -90,7 +130,7 @@ export default function MapScreen({ navigation }) {
           </View>
 
           <View style={styles.countPill}>
-            <Text style={styles.countText}>{pins.length} PINS</Text>
+            <Text style={styles.countText}>{allPins.length} PINS</Text>
           </View>
         </View>
 
@@ -98,7 +138,7 @@ export default function MapScreen({ navigation }) {
           <CampusMap
             campus={CAMPUS}
             buildings={BUILDINGS}
-            items={ITEMS}
+            items={allPins}
             filter={filter}
             selectedId={selectedId}
             onSelect={handleSelect}

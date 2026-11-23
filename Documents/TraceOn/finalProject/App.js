@@ -1,7 +1,9 @@
 import "./global.css";
-import React, { useState } from "react";
-import { View, Text, Pressable } from "react-native";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+
+import { AuthProvider, useAuth } from "./context/AuthProvider";
 
 import WelcomeScreen from "./pages/auth/WelcomeScreen";
 import LoginScreen from "./pages/auth/LoginScreen";
@@ -42,14 +44,35 @@ const SCREENS = {
 // Tabs visible once signed in.
 const TABS = ["Home", "Map", "Report", "Claims", "Profile"];
 
-export default function App() {
+function Splash() {
+  return (
+    <View className="flex-1 items-center justify-center bg-cream">
+      <Text className="text-[26px] font-semibold text-primary-dark">
+        Trace<Text className="text-primary">On</Text>
+      </Text>
+      <ActivityIndicator className="mt-4" color="#14614A" />
+    </View>
+  );
+}
+
+function Shell() {
+  const { session, loading } = useAuth();
+  const signedIn = Boolean(session);
+
   const [stack, setStack] = useState(["Welcome"]);
+
+  // Signing in opens the app; signing out drops back to Welcome.
+  useEffect(() => {
+    setStack(signedIn ? ["Home"] : ["Welcome"]);
+  }, [signedIn]);
+
   const current = stack[stack.length - 1];
+  const Screen = SCREENS[current];
 
   const navigation = {
     navigate: (name) => setStack((s) => [...s, name]),
     goBack: () => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s)),
-    // Signing out drops the whole stack.
+    // Resetting drops the rest of the stack.
     reset: (name) => setStack([name]),
   };
 
@@ -66,20 +89,28 @@ export default function App() {
     });
   }
 
-  const Screen = SCREENS[current];
+  if (loading) return <Splash />;
 
   return (
+    <View className="flex-1">
+      {Screen ? (
+        <Screen navigation={navigation} />
+      ) : (
+        <Placeholder name={current} navigation={navigation} />
+      )}
+      {signedIn && TABS.includes(current) && (
+        <BottomTabs current={current} onNavigate={openTab} />
+      )}
+    </View>
+  );
+}
+
+export default function App() {
+  return (
     <SafeAreaProvider>
-      <View className="flex-1">
-        {Screen ? (
-          <Screen navigation={navigation} />
-        ) : (
-          <Placeholder name={current} navigation={navigation} />
-        )}
-        {TABS.includes(current) && (
-          <BottomTabs current={current} onNavigate={openTab} />
-        )}
-      </View>
+      <AuthProvider>
+        <Shell />
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }
