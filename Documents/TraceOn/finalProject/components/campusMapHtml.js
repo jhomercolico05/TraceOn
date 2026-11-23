@@ -13,8 +13,15 @@ const escapeForInlineScript = (value) =>
     .replace(/\u2028/g, '\\u2028')
     .replace(/\u2029/g, '\\u2029')
 
-export function buildCampusMapHtml({ campus, buildings, items, filter = 'all' }) {
-  const data = escapeForInlineScript({ campus, buildings, items, filter })
+export function buildCampusMapHtml({
+  campus,
+  buildings,
+  items,
+  filter = 'all',
+  pickMode = false,
+  pin = null,
+}) {
+  const data = escapeForInlineScript({ campus, buildings, items, filter, pickMode, pin })
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -126,6 +133,27 @@ export function buildCampusMapHtml({ campus, buildings, items, filter = 'all' })
         0 3px 9px rgba(20, 32, 27, 0.4);
     }
 
+    /* The pin dropped by the report form's location picker. */
+    .pick-pin {
+      position: relative;
+      display: block;
+      width: 26px;
+      height: 26px;
+      border: 3px solid #ffffff;
+      border-radius: 999px 999px 999px 0;
+      transform: rotate(-45deg);
+      background: #14614a;
+      box-shadow: 0 3px 9px rgba(20, 32, 27, 0.42);
+    }
+
+    .pick-pin::after {
+      content: '';
+      position: absolute;
+      inset: 7px;
+      border-radius: 999px;
+      background: #ffffff;
+    }
+
     .map-controls {
       position: absolute;
       top: 12px;
@@ -230,6 +258,8 @@ export function buildCampusMapHtml({ campus, buildings, items, filter = 'all' })
       var campus = DATA.campus;
       var currentFilter = (DATA.filter || 'all').toLowerCase();
       var selectedId = null;
+      var pickMode = !!DATA.pickMode;
+      var picked = DATA.pin ? [DATA.pin.lat, DATA.pin.lon] : null;
 
       var map = L.map('map', {
         zoomControl: false,
@@ -318,6 +348,7 @@ export function buildCampusMapHtml({ campus, buildings, items, filter = 'all' })
 
       function renderPins() {
         pinsLayer.clearLayers();
+        if (pickMode) return;
 
         visibleItems().forEach(function (item) {
           var active = item.id === selectedId;
@@ -344,7 +375,29 @@ export function buildCampusMapHtml({ campus, buildings, items, filter = 'all' })
         });
       }
 
-      map.on('click', function () {
+      var pickLayer = L.layerGroup().addTo(map);
+
+      function renderPick() {
+        pickLayer.clearLayers();
+        if (!picked) return;
+
+        var icon = L.divIcon({
+          className: 'pin-icon',
+          html: '<span class="pick-pin"></span>',
+          iconSize: [30, 30],
+          iconAnchor: [15, 30],
+        });
+
+        L.marker(picked, { icon: icon, interactive: false }).addTo(pickLayer);
+      }
+
+      map.on('click', function (event) {
+        if (pickMode) {
+          picked = [event.latlng.lat, event.latlng.lng];
+          renderPick();
+          post({ type: 'pick', lat: picked[0], lng: picked[1] });
+          return;
+        }
         post({ type: 'select', id: null });
       });
 
@@ -372,6 +425,11 @@ export function buildCampusMapHtml({ campus, buildings, items, filter = 'all' })
         renderPins();
       };
 
+      window.traceonSetPin = function (lat, lng) {
+        picked = lat != null && lng != null ? [lat, lng] : null;
+        renderPick();
+      };
+
       function receive(raw) {
         if (!raw) return;
 
@@ -388,6 +446,8 @@ export function buildCampusMapHtml({ campus, buildings, items, filter = 'all' })
           applyFilter(payload.filter);
         } else if (payload.type === 'select') {
           window.traceonSetSelected(payload.id);
+        } else if (payload.type === 'pin') {
+          window.traceonSetPin(payload.lat, payload.lng);
         }
       }
 
@@ -414,6 +474,8 @@ export function buildCampusMapHtml({ campus, buildings, items, filter = 'all' })
       function notifyReady() {
         map.invalidateSize();
         renderLabels();
+        renderPins();
+        renderPick();
         post({ type: 'ready' });
       }
 

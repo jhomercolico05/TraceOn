@@ -6,12 +6,24 @@ import { buildCampusMapHtml } from './campusMapHtml'
  * Web version of the campus map. Leaflet runs inside a small self-contained
  * iframe so its CSS cannot leak into the app, and the app talks to it through
  * postMessage.
+ *
+ * Pass `pickMode` to turn taps into dropped pins (used by the report form).
  */
-export default function CampusMap({ campus, buildings, items, filter, selectedId, onSelect }) {
+export default function CampusMap({
+  campus,
+  buildings,
+  items,
+  filter = 'All',
+  selectedId,
+  onSelect,
+  pickMode = false,
+  pin = null,
+  onPick,
+}) {
   const frameRef = useRef(null)
   const [ready, setReady] = useState(false)
   const [html] = useState(() =>
-    buildCampusMapHtml({ campus, buildings, items, filter }),
+    buildCampusMapHtml({ campus, buildings, items, filter, pickMode, pin }),
   )
 
   const post = useCallback((payload) => {
@@ -32,22 +44,29 @@ export default function CampusMap({ campus, buildings, items, filter, selectedId
         setReady(true)
       } else if (data.type === 'select') {
         onSelect?.(data.id ?? null)
+      } else if (data.type === 'pick') {
+        onPick?.({ lat: data.lat, lng: data.lng })
       }
     }
 
     window.addEventListener('message', handleMessage)
     return () => window.removeEventListener('message', handleMessage)
-  }, [onSelect])
+  }, [onSelect, onPick])
 
   useEffect(() => {
     if (!ready) return
-    post({ type: 'filter', filter: filter.toLowerCase() })
+    post({ type: 'filter', filter: String(filter).toLowerCase() })
   }, [filter, post, ready])
 
   useEffect(() => {
     if (!ready) return
     post({ type: 'select', id: selectedId })
   }, [post, ready, selectedId])
+
+  useEffect(() => {
+    if (!ready) return
+    post({ type: 'pin', lat: pin?.lat ?? null, lng: pin?.lng ?? null })
+  }, [post, ready, pin])
 
   return (
     <iframe

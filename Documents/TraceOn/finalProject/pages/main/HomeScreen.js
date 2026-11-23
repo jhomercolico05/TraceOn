@@ -43,11 +43,17 @@ export default function HomeScreen({ navigation }) {
           <Text className="text-[20px] font-bold text-white">Lost something on campus?</Text>
           <Text className="text-[13px] text-white/80 mt-1 mb-4">Post it with a photo and a pin on the campus map. We will alert you when a match appears.</Text>
           <View className="flex-row gap-3">
-            <Pressable className="flex-1 bg-[#F59E0B] py-3 rounded-xl items-center flex-row justify-center">
+            <Pressable
+              onPress={() => navigation?.navigate("Report")}
+              className="flex-1 bg-[#F59E0B] py-3 rounded-xl items-center flex-row justify-center"
+            >
               <Ionicons name="add" size={18} color="#000" />
               <Text className="font-semibold text-black ml-1">Report lost</Text>
             </Pressable>
-            <Pressable className="flex-1 bg-white py-3 rounded-xl items-center flex-row justify-center">
+            <Pressable
+              onPress={() => navigation?.navigate("Report")}
+              className="flex-1 bg-white py-3 rounded-xl items-center flex-row justify-center"
+            >
               <Ionicons name="heart-outline" size={18} color="#0E4A38" />
               <Text className="font-semibold text-[#0E4A38] ml-1">Post found</Text>
             </Pressable>
@@ -73,7 +79,9 @@ export default function HomeScreen({ navigation }) {
         <View className="mt-8 mb-20">
           <View className="flex-row justify-between items-end mb-4">
             <Text className="text-[18px] font-bold">Community wall</Text>
-            <Text className="text-primary font-semibold">Explore ↗</Text>
+            <Pressable onPress={() => navigation?.navigate("Map")}>
+              <Text className="text-primary font-semibold">Explore ↗</Text>
+            </Pressable>
           </View>
           <Text className="text-gray-500 text-[12px] mb-4">15 reports · updated live</Text>
 

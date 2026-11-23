@@ -7,6 +7,9 @@ import WelcomeScreen from "./pages/auth/WelcomeScreen";
 import LoginScreen from "./pages/auth/LoginScreen";
 import RegisterScreen from "./pages/auth/RegisterScreen";
 import HomeScreen from "./pages/main/HomeScreen";
+import ReportScreen from "./pages/main/ReportScreen";
+import ClaimsScreen from "./pages/main/ClaimsScreen";
+import ProfileScreen from "./pages/main/ProfileScreen";
 import MapScreen from "./pages/MapScreen";
 import BottomTabs from "./components/BottomTabs";
 
@@ -31,9 +34,9 @@ const SCREENS = {
   Register: RegisterScreen,
   Home: HomeScreen,
   Map: MapScreen,
-  Report: Placeholder,
-  Claims: Placeholder,
-  Profile: Placeholder,
+  Report: ReportScreen,
+  Claims: ClaimsScreen,
+  Profile: ProfileScreen,
 };
 
 // Tabs visible once signed in.
@@ -46,7 +49,22 @@ export default function App() {
   const navigation = {
     navigate: (name) => setStack((s) => [...s, name]),
     goBack: () => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s)),
+    // Signing out drops the whole stack.
+    reset: (name) => setStack([name]),
   };
+
+  // Switching tabs replaces the current tab in place, so the back stack does
+  // not grow every time you tap between Home, Map, Report and so on.
+  function openTab(tab) {
+    setStack((s) => {
+      for (let i = s.length - 1; i >= 0; i -= 1) {
+        if (TABS.includes(s[i])) {
+          return [...s.slice(0, i), tab];
+        }
+      }
+      return [...s, tab];
+    });
+  }
 
   const Screen = SCREENS[current];
 
@@ -59,10 +77,7 @@ export default function App() {
           <Placeholder name={current} navigation={navigation} />
         )}
         {TABS.includes(current) && (
-          <BottomTabs
-            current={current}
-            onNavigate={(tab) => setStack((s) => [...s, tab])}
-          />
+          <BottomTabs current={current} onNavigate={openTab} />
         )}
       </View>
     </SafeAreaProvider>
